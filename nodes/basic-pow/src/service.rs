@@ -146,13 +146,31 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let is_authority = config.role.is_authority();
 	let prometheus_registry = config.prometheus_registry().cloned();
 
+	// // Channel for the rpc handler to communicate with the authorship task.
+	// let (command_sink, commands_stream) = futures::channel::mpsc::channel(1000);
+
+	let rpc_extensions_builder = {
+		let client = client.clone();
+		let pool = transaction_pool.clone();
+		Box::new(move |deny_unsafe, _| {
+			let deps = crate::rpc::FullDeps {
+				client: client.clone(),
+				pool: pool.clone(),
+				deny_unsafe,
+				//command_sink: command_sink.clone(),
+			};
+
+			crate::rpc::create_full(deps)
+		})
+	};
+
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		network: network.clone(),
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		task_manager: &mut task_manager,
 		transaction_pool: transaction_pool.clone(),
-		rpc_extensions_builder: Box::new(|_, _| ()),
+		rpc_extensions_builder,
 		on_demand: None,
 		remote_blockchain: None,
 		backend,
