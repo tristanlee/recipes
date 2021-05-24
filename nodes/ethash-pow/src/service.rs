@@ -149,20 +149,93 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	// // Channel for the rpc handler to communicate with the authorship task.
 	// let (command_sink, commands_stream) = futures::channel::mpsc::channel(1000);
 
-	let rpc_extensions_builder = {
-		let client = client.clone();
-		let pool = transaction_pool.clone();
-		Box::new(move |deny_unsafe, _| {
-			let deps = crate::rpc::FullDeps {
-				client: client.clone(),
-				pool: pool.clone(),
-				deny_unsafe,
-				//command_sink: command_sink.clone(),
-			};
+	let rpc_extensions_builder = Box::new(|_, _| ());
 
-			crate::rpc::create_full(deps)
-		})
-	};
+	if is_authority {
+		let proposer = sc_basic_authorship::ProposerFactory::new(
+			task_manager.spawn_handle(),
+			client.clone(),
+			transaction_pool.clone(),
+			prometheus_registry.as_ref(),
+		);
+
+		let can_author_with =
+			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
+
+		// Parameter details:
+		//   https://substrate.dev/rustdocs/v3.0.0/sc_consensus_pow/fn.start_mining_worker.html
+		// Also refer to kulupu config:
+		//   https://github.com/kulupu/kulupu/blob/master/src/service.rs
+		let (_worker, worker_task) = sc_consensus_pow::start_mining_worker(
+			Box::new(pow_block_import),
+			client.clone(),
+			select_chain,
+			MinimalSha3Algorithm,
+			proposer,
+			network.clone(),
+			None,
+			inherent_data_providers,
+			// time to wait for a new block before starting to mine a new one
+			Duration::from_secs(10),
+			// how long to take to actually build the block (i.e. executing extrinsics)
+			Duration::from_secs(10),
+			can_author_with,
+		);
+
+		// let deps = crate::rpc::FullDeps {
+		// 	client: client.clone(),
+		// 	pool: transaction_pool.clone(),
+		// 	deny_unsafe: sc_rpc_api::DenyUnsafe::No,
+		// 	worker: _worker.clone(),
+		// };
+		// crate::rpc::create_full(deps);
+
+		let rpc_extensions_builder = {
+			let client = client.clone();
+			let pool = transaction_pool.clone();
+			Box::new(move |deny_unsafe| {
+				let deps = crate::rpc::FullDeps {
+					client: client.clone(),
+					pool: pool.clone(),
+					deny_unsafe,
+					worker: _worker.clone(),
+				};
+
+				crate::rpc::create_full(deps)
+			})
+		};
+
+		task_manager
+			.spawn_essential_handle()
+			.spawn_blocking("pow", worker_task);
+		
+		// // Start Mining
+		// let mut nonce: U256 = U256::from(0);
+		// thread::spawn(move || loop {
+		// 	let worker = _worker.clone();
+		// 	let metadata = worker.lock().metadata();
+		// 	if let Some(metadata) = metadata {
+		// 		let compute = Compute {
+		// 			difficulty: metadata.difficulty,
+		// 			pre_hash: metadata.pre_hash,
+		// 			nonce,
+		// 		};
+		// 		let seal = compute.compute();
+		// 		if hash_meets_difficulty(&seal.work, seal.difficulty) {
+		// 			nonce = U256::from(0);
+		// 			let mut worker = worker.lock();
+		// 			worker.submit(seal.encode());
+		// 		} else {
+		// 			nonce = nonce.saturating_add(U256::from(1));
+		// 			if nonce == U256::MAX {
+		// 				nonce = U256::from(0);
+		// 			}
+		// 		}
+		// 	} else {
+		// 		thread::sleep(Duration::new(1, 0));
+		// 	}
+		// });
+	}
 
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		network: network.clone(),
@@ -178,69 +251,6 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 		system_rpc_tx,
 		config,
 	})?;
-
-	if is_authority {
-		let proposer = sc_basic_authorship::ProposerFactory::new(
-			task_manager.spawn_handle(),
-			client.clone(),
-			transaction_pool,
-			prometheus_registry.as_ref(),
-		);
-
-		let can_author_with =
-			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
-
-		// Parameter details:
-		//   https://substrate.dev/rustdocs/v3.0.0/sc_consensus_pow/fn.start_mining_worker.html
-		// Also refer to kulupu config:
-		//   https://github.com/kulupu/kulupu/blob/master/src/service.rs
-		let (_worker, worker_task) = sc_consensus_pow::start_mining_worker(
-			Box::new(pow_block_import),
-			client,
-			select_chain,
-			MinimalSha3Algorithm,
-			proposer,
-			network,
-			None,
-			inherent_data_providers,
-			// time to wait for a new block before starting to mine a new one
-			Duration::from_secs(10),
-			// how long to take to actually build the block (i.e. executing extrinsics)
-			Duration::from_secs(10),
-			can_author_with,
-		);
-
-		task_manager
-			.spawn_essential_handle()
-			.spawn_blocking("pow", worker_task);
-		
-		// Start Mining
-		let mut nonce: U256 = U256::from(0);
-		thread::spawn(move || loop {
-			let worker = _worker.clone();
-			let metadata = worker.lock().metadata();
-			if let Some(metadata) = metadata {
-				let compute = Compute {
-					difficulty: metadata.difficulty,
-					pre_hash: metadata.pre_hash,
-					nonce,
-				};
-				let seal = compute.compute();
-				if hash_meets_difficulty(&seal.work, seal.difficulty) {
-					nonce = U256::from(0);
-					let mut worker = worker.lock();
-					worker.submit(seal.encode());
-				} else {
-					nonce = nonce.saturating_add(U256::from(1));
-					if nonce == U256::MAX {
-						nonce = U256::from(0);
-					}
-				}
-			} else {
-				thread::sleep(Duration::new(1, 0));
-			}
-		});
-	}
 
 	network_starter.start_network();
 	Ok(task_manager)

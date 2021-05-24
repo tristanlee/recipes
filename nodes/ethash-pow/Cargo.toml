@@ -20,6 +20,7 @@ log = '0.4.8'
 rand = { version = "0.7.2", features = ["small_rng"] }
 sha3 = "0.8.0"
 structopt = '0.3.8'
+parking_lot = "0.11.1"
 
 # Substrate packages
 sc-basic-authorship = '0.9'
