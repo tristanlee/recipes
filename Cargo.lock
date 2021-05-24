@@ -441,46 +441,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
-name = "basic-pow"
-version = "3.0.0"
-dependencies = [
- "api-runtime",
- "futures 0.3.13",
- "jsonrpc-core",
- "jsonrpc-core-client",
- "jsonrpc-derive",
- "log",
- "rand 0.7.3",
- "sc-basic-authorship",
- "sc-cli",
- "sc-client-api",
- "sc-consensus",
- "sc-consensus-pow",
- "sc-executor",
- "sc-network",
- "sc-rpc",
- "sc-rpc-api",
- "sc-service",
- "sc-transaction-pool",
- "sha3 0.8.2",
- "sha3pow",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "sp-timestamp",
- "sp-transaction-pool",
- "structopt",
- "substrate-build-script-utils",
- "sum-storage-rpc",
- "sum-storage-runtime-api",
- "vergen",
-]
-
-[[package]]
 name = "basic-token"
 version = "3.0.0"
 dependencies = [
@@ -1347,6 +1307,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0465971a8cc1fa2455c8465aaa377131e1f1cf4983280f474a13e68793aa770c"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "ethash-pow"
+version = "3.0.0"
+dependencies = [
+ "api-runtime",
+ "futures 0.3.13",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "log",
+ "rand 0.7.3",
+ "sc-basic-authorship",
+ "sc-cli",
+ "sc-client-api",
+ "sc-consensus",
+ "sc-consensus-pow",
+ "sc-executor",
+ "sc-network",
+ "sc-rpc",
+ "sc-rpc-api",
+ "sc-service",
+ "sc-transaction-pool",
+ "sha3 0.8.2",
+ "sha3pow",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-timestamp",
+ "sp-transaction-pool",
+ "structopt",
+ "substrate-build-script-utils",
+ "sum-storage-rpc",
+ "sum-storage-runtime-api",
+ "vergen",
 ]
 
 [[package]]
